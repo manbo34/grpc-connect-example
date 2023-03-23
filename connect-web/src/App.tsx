@@ -48,10 +48,14 @@ function App() {
           message: inputValue,
         },
       ]);
-      const response = await client.greetStream({
-        name: inputValue
-      });
-      for await (const res of client.greetStream({ name: inputValue })) {
+      const headers = new Headers();
+      headers.set("user_id", "AbCdEf123456");
+      headers.set("Authorization", "Bearer AbCdEf123456");
+      console.log("headers", headers.get("user_id"))
+      // const response = await client.greetStream({
+      //   name: inputValue
+      // }, {headers: headers});
+      for await (const res of client.greetStream({ name: inputValue }, {headers: headers})) {
         console.log(res);
         setMessages((prev) => [
           ...prev,

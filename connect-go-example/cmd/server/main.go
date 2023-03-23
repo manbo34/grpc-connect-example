@@ -57,6 +57,9 @@ func (s *GreetServer) GreetStream(
 	if name == "" {
 		name = "Anonymous User"
 	}
+	fmt.Println("*************************")
+	fmt.Println(req.Header().Get("user_id"))
+
 	intros := GetGreetStreamResponses(name)
 	var ticker *time.Ticker
 	//if e.streamDelay > 0 {
@@ -92,7 +95,7 @@ func main() {
 		AllowOriginFunc: func(origin string) bool {
 			return true
 		},
-		AllowedHeaders: []string{"Connect-Protocol-Version", "Content-Type"},
+		AllowedHeaders: []string{"Connect-Protocol-Version", "Content-Type", "user_id", "Authorization"},
 		// Enable Debugging for testing, consider disabling in production
 		Debug: true,
 	})
