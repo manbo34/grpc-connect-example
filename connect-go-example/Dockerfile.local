@@ -1,0 +1,17 @@
+# ベースとなるイメージ
+FROM golang:1.20.2-alpine3.17
+
+# ワーキングディレクトリを設定
+WORKDIR /app
+
+# コンテナにアプリケーションをコピー
+COPY . .
+
+# アプリケーションのビルド
+RUN go build -o ./gen ./cmd/server/main.go
+
+# ポートを公開
+EXPOSE 8080
+
+# コンテナ実行時にアプリケーションを起動
+CMD ["./gen/main"]

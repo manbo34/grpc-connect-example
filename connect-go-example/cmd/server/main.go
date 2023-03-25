@@ -83,6 +83,7 @@ func (s *GreetServer) GreetStream(
 }
 
 func main() {
+	fmt.Println("***START**********************")
 	greeter := &GreetServer{}
 	mux := http.NewServeMux()
 	path2, handler2 := greetv1connect.NewGreetStreamServiceHandler(greeter)
@@ -103,7 +104,7 @@ func main() {
 	//corsHandler := cors.Default().Handler(h2c.NewHandler(mux, &http2.Server{}))
 	// corsHandler := h2c.NewHandler(mux, &http2.Server{}) // もとの実装はこれ
 	http.ListenAndServe(
-		"localhost:8080",
+		":8080",
 		corsHandler,
 	)
 }
