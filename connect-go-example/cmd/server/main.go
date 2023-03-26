@@ -22,10 +22,14 @@ func (s *GreetServer) Greet(
 	req *connect.Request[greetv1.GreetRequest],
 ) (*connect.Response[greetv1.GreetResponse], error) {
 	log.Println("Request headers: ", req.Header())
+	fmt.Println("*************************")
+	fmt.Println(req.Header().Get("user_id"))
+
 	res := connect.NewResponse(&greetv1.GreetResponse{
 		Greeting: fmt.Sprintf("Hello, %s!", req.Msg.Name),
 	})
 	res.Header().Set("Greet-Version", "v1")
+	res.Header().Set("Access-Control-Allow-Origin", "*")
 	//res.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 	log.Println(fmt.Sprintf("Hello, %s!", req.Msg.Name))
 	return res, nil
@@ -59,7 +63,6 @@ func (s *GreetServer) GreetStream(
 	}
 	fmt.Println("*************************")
 	fmt.Println(req.Header().Get("user_id"))
-
 	intros := GetGreetStreamResponses(name)
 	var ticker *time.Ticker
 	//if e.streamDelay > 0 {
@@ -82,6 +85,45 @@ func (s *GreetServer) GreetStream(
 	return nil
 }
 
+func newCORS() *cors.Cors {
+	// To let web developers play with the demo service from browsers, we need a
+	// very permissive CORS setup.
+	return cors.New(cors.Options{
+		AllowedMethods: []string{
+			http.MethodHead,
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+		},
+		AllowOriginFunc: func(origin string) bool {
+			// Allow all origins, which effectively disables CORS.
+			return true
+		},
+		AllowedHeaders: []string{"*"},
+		ExposedHeaders: []string{
+			// Content-Type is in the default safelist.
+			"Accept",
+			"Accept-Encoding",
+			"Accept-Post",
+			"Connect-Accept-Encoding",
+			"Connect-Content-Encoding",
+			"Content-Encoding",
+			"Grpc-Accept-Encoding",
+			"Grpc-Encoding",
+			"Grpc-Message",
+			"Grpc-Status",
+			"Grpc-Status-Details-Bin",
+		},
+		// Let browsers cache CORS information for longer, which reduces the number
+		// of preflight requests. Any changes to ExposedHeaders won't take effect
+		// until the cached data expires. FF caps this value at 24h, and modern
+		// Chrome caps it at 2h.
+		MaxAge: int(2 * time.Hour / time.Second),
+	})
+}
+
 func main() {
 	fmt.Println("***START**********************")
 	greeter := &GreetServer{}
@@ -90,21 +132,46 @@ func main() {
 	mux.Handle(path2, handler2)
 	path, handler := greetv1connect.NewGreetServiceHandler(greeter)
 	mux.Handle(path, handler)
-	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"POST", "OPTIONS"},
-		AllowOriginFunc: func(origin string) bool {
-			return true
-		},
-		AllowedHeaders: []string{"Connect-Protocol-Version", "Content-Type", "user_id", "Authorization"},
-		// Enable Debugging for testing, consider disabling in production
-		Debug: true,
-	})
-	corsHandler := c.Handler(h2c.NewHandler(mux, &http2.Server{}))
+	//c := cors.New(cors.Options{
+	//	AllowedOrigins: []string{"*"},
+	//	//AllowedOrigins: []string{"http://localhost:5173"},
+	//	AllowedMethods: []string{"POST, GET, OPTIONS, PUT, DELETE"},
+	//	AllowOriginFunc: func(origin string) bool {
+	//		return true
+	//	},
+	//	AllowedHeaders: []string{"Connect-Protocol-Version", " Authorization", "user_id", "keep-alive", "user-agent", "cache-control", "content-type", "content-transfer-encoding", "custom-header-1", "x-accept-content-transfer-encoding", "x-accept-response-streaming", "x-user-agent", "x-grpc-web", "grpc-timeout"},
+	//	//AllowedHeaders: []string{"Connect-Protocol-Version", "Content-Type", "user_id", "Authorization"},
+	//	// Enable Debugging for testing, consider disabling in production
+	//	Debug: true,
+	//})
+
+	//corsHandler := c.Handler(h2c.NewHandler(mux, &http2.Server{}))
 	//corsHandler := cors.Default().Handler(h2c.NewHandler(mux, &http2.Server{}))
 	// corsHandler := h2c.NewHandler(mux, &http2.Server{}) // もとの実装はこれ
-	http.ListenAndServe(
-		":8080",
-		corsHandler,
-	)
+	//server := &http.Server{
+	//	Addr: ":http",
+	//	Handler: corsHandler,
+	//	// Don't forget timeouts!
+	//}
+	//server := &http.Server{
+	//	Addr:    ":8080",
+	//	Handler: corsHandler,
+	//	// Don't forget timeouts!
+	//}
+	server := &http.Server{
+		Addr: ":8080",
+		Handler: h2c.NewHandler(
+			newCORS().Handler(mux),
+			&http2.Server{},
+		),
+		ReadHeaderTimeout: time.Second,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
+		MaxHeaderBytes:    8 * 1024, // 8KiB
+	}
+	//http.ListenAndServe(
+	//	":8080",
+	//	corsHandler,
+	//)
+	server.ListenAndServe()
 }
